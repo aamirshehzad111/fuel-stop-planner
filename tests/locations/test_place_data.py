@@ -118,3 +118,12 @@ def test_us_boundary_is_taken_from_the_countries_collection():
         "type": "MultiPolygon",
         "coordinates": [[[[-100.1235, 40.0], [-99.0, 40.0], [-99.0, 41.0], [-100.1235, 40.0]]]],
     }
+
+
+def test_rebuilding_the_same_data_gives_identical_files(tmp_path):
+    places = [PlaceRecord("Big Cabin", "OK", Coordinates(36.53787, -95.22136))]
+
+    write_places(places, tmp_path / "first.csv.gz")
+    write_places(places, tmp_path / "second.csv.gz")
+
+    assert (tmp_path / "first.csv.gz").read_bytes() == (tmp_path / "second.csv.gz").read_bytes()

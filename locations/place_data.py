@@ -16,12 +16,14 @@ from __future__ import annotations
 
 import csv
 import gzip
+import io
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 from core.geo import Coordinates, is_in_united_states
 from locations.names import US_STATES, census_place_name, parse_state, place_key
@@ -134,7 +136,7 @@ def merge_places(sources: Iterable[SourcePlace]) -> list[PlaceRecord]:
 
 
 def write_places(places: Iterable[PlaceRecord], path: Path) -> None:
-    with gzip.open(path, "wt", encoding="utf-8", newline="") as file:
+    with _gzip_text_writer(path) as file:
         writer = csv.writer(file)
         writer.writerow(["name", "state", "latitude", "longitude"])
         for place in places:
@@ -148,7 +150,7 @@ def read_places(path: Path) -> Iterator[PlaceRecord]:
 
 
 def write_postal_codes(codes: Iterable[PostalCodeRecord], path: Path) -> None:
-    with gzip.open(path, "wt", encoding="utf-8", newline="") as file:
+    with _gzip_text_writer(path) as file:
         writer = csv.writer(file)
         writer.writerow(["code", "latitude", "longitude"])
         for code in codes:
@@ -175,6 +177,17 @@ def us_boundary_from_countries(countries: dict[str, Any]) -> dict[str, Any]:
             for polygon in polygons
         ],
     }
+
+
+@contextmanager
+def _gzip_text_writer(path: Path) -> Iterator[TextIO]:
+    """Gzip without a timestamp or file name, so the same data always gives the same file."""
+    with (
+        path.open("wb") as raw,
+        gzip.GzipFile(filename="", fileobj=raw, mode="wb", mtime=0) as compressed,
+        io.TextIOWrapper(compressed, encoding="utf-8", newline="") as text,
+    ):
+        yield text
 
 
 def _rounded(coordinates: Coordinates) -> tuple[float, float]:
