@@ -1,0 +1,46 @@
+[project]
+name = "fuel-stop-planner"
+version = "1.0.0"
+description = "Django API that plans the cheapest fuel stops along a driving route in the USA."
+readme = "README.md"
+requires-python = ">=3.13"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+# E/W: pycodestyle, F: pyflakes, I: isort, B: bugbear, UP: pyupgrade,
+# SIM: simplify, DJ: Django, PT: pytest style, RUF: ruff-specific.
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "DJ", "PT", "RUF"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+testpaths = ["tests"]
+addopts = "--strict-markers --no-migrations -p no:cacheprovider"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["config", "core", "locations", "stations", "routing", "integrations", "planning", "trips"]
+omit = ["*/migrations/*", "config/asgi.py", "config/wsgi.py"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict = true
+warn_unreachable = true
+exclude = ["/migrations/", "^\\.venv/"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = ["environ.*", "scipy.*"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "tests.settings"
