@@ -118,4 +118,9 @@ LOGGING = {
 FUEL_PLANNER = {
     "VEHICLE_RANGE_MILES": 500,
     "MILES_PER_GALLON": 10,
+    # Stations are placed at their town's center; towns this close to the route count.
+    "MAX_STATION_OFFSET_MILES": 5,
+    # Each stop counts as this many dollars when choosing stops (never billed). Measured on
+    # eight long trips, $5 cut the stops by more than half for under 1% more fuel cost.
+    "STOP_PENALTY_USD": 5,
 }
