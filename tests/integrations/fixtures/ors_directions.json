@@ -1,0 +1,110 @@
+{
+ "bbox": [
+  -87.973319,
+  41.836994,
+  -87.643775,
+  43.052175
+ ],
+ "features": [
+  {
+   "bbox": [
+    -87.973319,
+    41.836994,
+    -87.643775,
+    43.052175
+   ],
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -87.684743,
+      41.836994
+     ],
+     [
+      -87.649947,
+      41.858054
+     ],
+     [
+      -87.665994,
+      41.912596
+     ],
+     [
+      -87.747352,
+      41.976583
+     ],
+     [
+      -87.756271,
+      42.059637
+     ],
+     [
+      -87.84383,
+      42.149619
+     ],
+     [
+      -87.902764,
+      42.295876
+     ],
+     [
+      -87.947324,
+      42.479564
+     ],
+     [
+      -87.953919,
+      42.742299
+     ],
+     [
+      -87.929357,
+      42.96578
+     ],
+     [
+      -87.947896,
+      43.034196
+     ],
+     [
+      -87.966974,
+      43.050029
+     ]
+    ]
+   },
+   "properties": {
+    "summary": {
+     "distance": 158831.1,
+     "duration": 6898.3
+    },
+    "way_points": [
+     0,
+     11
+    ]
+   },
+   "type": "Feature"
+  }
+ ],
+ "metadata": {
+  "query": {
+   "coordinates": [
+    [
+     -87.6847,
+     41.837
+    ],
+    [
+     -87.967,
+     43.05
+    ]
+   ],
+   "format": "geojson",
+   "profile": "driving-car",
+   "profileName": "driving-car",
+   "radiuses": [
+    -1.0,
+    -1.0
+   ]
+  },
+  "attribution": "openrouteservice.org | OpenStreetMap contributors",
+  "engine": {
+   "version": "10.1.0"
+  },
+  "service": "routing",
+  "system_message": "Please note that the URL api.openrouteservice.org has been deprecated. All information available at ask.openrouteservice.org"
+ },
+ "type": "FeatureCollection"
+}
