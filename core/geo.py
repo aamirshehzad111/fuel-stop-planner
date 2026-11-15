@@ -5,6 +5,7 @@ from __future__ import annotations
 import itertools
 import json
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
@@ -35,6 +36,41 @@ class Coordinates:
             raise ValueError(f"latitude must be between -90 and 90, got {self.lat}")
         if not -180 <= self.lng <= 180:
             raise ValueError(f"longitude must be between -180 and 180, got {self.lng}")
+
+
+@dataclass(frozen=True, slots=True)
+class BoundingBox:
+    """A latitude/longitude rectangle (does not cross the antimeridian)."""
+
+    south: float
+    west: float
+    north: float
+    east: float
+
+    @classmethod
+    def around(cls, points: Iterable[Coordinates]) -> BoundingBox:
+        lats, lngs = [], []
+        for point in points:
+            lats.append(point.lat)
+            lngs.append(point.lng)
+        if not lats:
+            raise ValueError("a bounding box needs at least one point")
+        return cls(south=min(lats), west=min(lngs), north=max(lats), east=max(lngs))
+
+    def expanded(self, miles: float) -> BoundingBox:
+        """The box grown by `miles` on every side."""
+        lat_margin = miles / _MILES_PER_DEGREE_LAT
+        widest_lat = max(abs(self.south), abs(self.north)) + lat_margin
+        lng_margin = miles / (_MILES_PER_DEGREE_LAT * max(math.cos(math.radians(widest_lat)), 0.01))
+        return BoundingBox(
+            south=max(self.south - lat_margin, -90),
+            west=max(self.west - lng_margin, -180),
+            north=min(self.north + lat_margin, 90),
+            east=min(self.east + lng_margin, 180),
+        )
+
+    def contains(self, point: Coordinates) -> bool:
+        return self.south <= point.lat <= self.north and self.west <= point.lng <= self.east
 
 
 def haversine_miles(a: Coordinates, b: Coordinates) -> float:
