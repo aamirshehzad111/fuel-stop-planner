@@ -20,9 +20,10 @@ class LocationNotFoundError(DomainError):
 
 
 class LocationOutsideUnitedStatesError(DomainError):
-    def __init__(self, query: str, label: str | None = None) -> None:
+    def __init__(self, query: str, label: str | None = None, hint: str = "") -> None:
         place = f"{query!r} ({label})" if label and label != query else repr(query)
-        super().__init__(f"{place} is outside the USA. Only trips within the USA can be planned.")
+        message = f"{place} is outside the USA. Only trips within the USA can be planned."
+        super().__init__(f"{message} {hint}".strip())
         self.query = query
 
 
