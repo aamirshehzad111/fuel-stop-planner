@@ -3,7 +3,7 @@ VENV := .venv
 BIN := $(VENV)/bin
 
 .DEFAULT_GOAL := help
-.PHONY: help install run test lint format
+.PHONY: help install data run test lint format
 
 help: ## Show the available commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -13,6 +13,9 @@ install: ## Create the virtualenv, install dependencies and migrate the database
 	$(BIN)/pip install --upgrade pip
 	$(BIN)/pip install -r requirements-dev.txt
 	$(BIN)/python manage.py migrate
+
+data: ## Load the reference data into the database
+	$(BIN)/python manage.py import_places
 
 run: ## Start the development server on http://127.0.0.1:8000
 	$(BIN)/python manage.py runserver
