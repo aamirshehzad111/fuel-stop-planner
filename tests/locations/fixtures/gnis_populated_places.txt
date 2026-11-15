@@ -1,0 +1,6 @@
+﻿feature_id|feature_name|feature_class|state_name|state_numeric|county_name|county_numeric|map_name|date_created|date_edited|bgn_type|bgn_authority|bgn_date|prim_lat_dms|prim_long_dms|prim_lat_dec|prim_long_dec
+1170000|Breezewood|Populated Place|Pennsylvania|42|Bedford|009|Breezewood|08/02/1979|||||400000N|0781426W|39.9978522|-78.2405700
+1180001|Midway|Populated Place|Kentucky|21|Woodford|239|Midway|02/08/1980|||||380900N|0843900W|38.1500|-84.6833
+1180002|Midway|Populated Place|Kentucky|21|Muhlenberg|177|Central City|02/08/1980|||||371500N|0870900W|37.2500|-87.1500
+1102140|Oklahoma City|Populated Place|Oklahoma|40|Oklahoma|109|Oklahoma City|09/01/1978|||||352804N|0973059W|35.4675602|-97.5164276
+1609000|Bayamon|Populated Place|Puerto Rico|72|Bayamon|021|Bayamon|02/08/1980|||||182400N|0660900W|18.3994|-66.1555

@@ -6,8 +6,12 @@ file in the project root). See `.env.example` for the available variables.
 
 from pathlib import Path
 
+import django_stubs_ext
 import environ
 from django.core.exceptions import ImproperlyConfigured
+
+# Lets generic Django classes (e.g. ModelAdmin[Place]) be subscripted at runtime.
+django_stubs_ext.monkeypatch()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -33,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
+    "locations",
 ]
 
 MIDDLEWARE = [
