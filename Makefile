@@ -14,8 +14,9 @@ install: ## Create the virtualenv, install dependencies and migrate the database
 	$(BIN)/pip install -r requirements-dev.txt
 	$(BIN)/python manage.py migrate
 
-data: ## Load the reference data into the database
+data: ## Load US places and the fuel price list into the database
 	$(BIN)/python manage.py import_places
+	$(BIN)/python manage.py import_fuel_prices
 
 run: ## Start the development server on http://127.0.0.1:8000
 	$(BIN)/python manage.py runserver

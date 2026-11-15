@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "locations",
+    "stations",
 ]
 
 MIDDLEWARE = [
