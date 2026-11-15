@@ -4,3 +4,4 @@
 1180002|Midway|Populated Place|Kentucky|21|Muhlenberg|177|Central City|02/08/1980|||||371500N|0870900W|37.2500|-87.1500
 1102140|Oklahoma City|Populated Place|Oklahoma|40|Oklahoma|109|Oklahoma City|09/01/1978|||||352804N|0973059W|35.4675602|-97.5164276
 1609000|Bayamon|Populated Place|Puerto Rico|72|Bayamon|021|Bayamon|02/08/1980|||||182400N|0660900W|18.3994|-66.1555
+1650000|Franklin|Populated Place|Tennessee|47|Macon|111|Lafayette|02/08/1980|||||363200N|0855900W|36.5333|-85.9833

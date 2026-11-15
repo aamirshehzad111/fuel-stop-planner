@@ -41,8 +41,14 @@ def test_census_place_names_lose_their_legal_description(merged):
     assert ("OK", "Oklahoma City") in merged
 
 
-def test_census_place_takes_precedence_over_other_sources(merged):
-    assert merged["OK", "Oklahoma City"].coordinates == Coordinates(35.467396, -97.513272)
+def test_town_center_comes_from_usgs_when_it_lists_the_same_town(merged):
+    # Census points are area centroids (San Francisco's is offshore, pulled out by
+    # the Farallon Islands); USGS points are the town centers.
+    assert merged["OK", "Oklahoma City"].coordinates == Coordinates(35.4675602, -97.5164276)
+
+
+def test_census_point_is_kept_when_the_usgs_namesake_is_far_away(merged):
+    assert merged["TN", "Franklin"].coordinates == Coordinates(35.925060, -86.868890)
 
 
 def test_incorporated_place_beats_a_larger_census_designated_place(merged):

@@ -10,6 +10,10 @@ Sources, in order of precedence when a name appears more than once in a state
 
 Within one source, same-named Census places keep the largest; same-named county
 subdivisions or GNIS places are ambiguous and dropped rather than guessed.
+
+Census points are centroids of the whole area, which can sit far from the town
+(San Francisco's is in the Pacific, pulled out by the Farallon Islands), so when
+GNIS lists the same town nearby, its point (the town center) is used instead.
 """
 
 from __future__ import annotations
@@ -25,10 +29,12 @@ from enum import IntEnum
 from pathlib import Path
 from typing import Any, TextIO
 
-from core.geo import Coordinates, is_in_united_states
+from core.geo import Coordinates, haversine_miles, is_in_united_states
 from locations.names import US_STATES, census_place_name, parse_state, place_key
 
 _CENSUS_DESIGNATED_PLACE_LSAD = "57"
+# A GNIS point this close to a Census centroid is taken to be the same town's center.
+_SAME_TOWN_MILES = 50
 _COORDINATE_DECIMALS = 5
 
 
@@ -131,8 +137,20 @@ def merge_places(sources: Iterable[SourcePlace]) -> list[PlaceRecord]:
         if len(best) > 1 and best_source not in _LARGEST_WINS:
             continue
         chosen = max(best, key=lambda place: place.land_area)
-        places.append(PlaceRecord(chosen.name, chosen.state, chosen.coordinates))
+        places.append(PlaceRecord(chosen.name, chosen.state, _town_center(chosen, group)))
     return sorted(places, key=lambda place: (place.state, place.name))
+
+
+def _town_center(chosen: SourcePlace, group: list[SourcePlace]) -> Coordinates:
+    if chosen.source == Source.POPULATED_PLACE:
+        return chosen.coordinates
+    centers = [place for place in group if place.source == Source.POPULATED_PLACE]
+    if not centers:
+        return chosen.coordinates
+    nearest = min(centers, key=lambda place: haversine_miles(place.coordinates, chosen.coordinates))
+    if haversine_miles(nearest.coordinates, chosen.coordinates) <= _SAME_TOWN_MILES:
+        return nearest.coordinates
+    return chosen.coordinates
 
 
 def write_places(places: Iterable[PlaceRecord], path: Path) -> None:
