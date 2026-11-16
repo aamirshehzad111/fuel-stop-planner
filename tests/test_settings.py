@@ -13,5 +13,5 @@ def test_stations_count_when_within_5_miles_of_the_route():
     assert settings.FUEL_PLANNER["MAX_STATION_OFFSET_MILES"] == 5
 
 
-def test_each_stop_counts_as_5_dollars_when_choosing_stops():
-    assert settings.FUEL_PLANNER["STOP_PENALTY_USD"] == 5
+def test_each_stop_counts_as_10_dollars_when_choosing_stops():
+    assert settings.FUEL_PLANNER["STOP_PENALTY_USD"] == 10
