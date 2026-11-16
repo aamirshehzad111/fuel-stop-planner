@@ -39,3 +39,9 @@ def test_map_tiles_tell_openstreetmap_which_site_asks(client, fake_planner):
     html = client.get(URL, TRIP).content.decode()
 
     assert 'referrerPolicy: "strict-origin-when-cross-origin"' in html
+
+
+def test_map_can_zoom_in_half_steps_to_frame_the_route(client, fake_planner):
+    html = client.get(URL, TRIP).content.decode()
+
+    assert "zoomSnap: 0.5" in html
