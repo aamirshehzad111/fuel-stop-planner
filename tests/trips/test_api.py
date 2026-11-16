@@ -4,6 +4,7 @@ import pytest
 from rest_framework.throttling import AnonRateThrottle
 
 from core.exceptions import (
+    FuelPricesNotLoadedError,
     LocationNotFoundError,
     LocationOutsideUnitedStatesError,
     NoFuelPlanError,
@@ -130,6 +131,7 @@ def test_missing_parameters_are_named(client, fake_planner):
         (ProviderUnavailableError("Routing is not configured."), 503, "routing_unavailable"),
         (ProviderTimeoutError("Too slow."), 504, "routing_timeout"),
         (ProviderResponseError("Bad gateway."), 502, "routing_failed"),
+        (FuelPricesNotLoadedError(), 503, "fuel_prices_not_loaded"),
     ],
 )
 def test_planning_errors_become_problem_details(client, failing_planner, error, status, code):

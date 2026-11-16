@@ -69,3 +69,11 @@ def test_find_nearest_looks_far_when_nothing_is_close(stations):
 
 def test_find_nearest_with_no_stations():
     assert DjangoStationRepository().find_nearest(Coordinates(36.0, -96.0)) is None
+
+
+def test_has_stations(stations):
+    assert DjangoStationRepository().has_stations()
+
+
+def test_has_no_stations_before_the_price_list_is_imported():
+    assert not DjangoStationRepository().has_stations()

@@ -2,7 +2,12 @@ from decimal import Decimal
 
 import pytest
 
-from core.exceptions import LocationNotFoundError, NoFuelPlanError, SameLocationError
+from core.exceptions import (
+    FuelPricesNotLoadedError,
+    LocationNotFoundError,
+    NoFuelPlanError,
+    SameLocationError,
+)
 from planning.optimizer import FuelStopOptimizer
 from planning.plan import FuelPlanner
 from planning.vehicle import Vehicle
@@ -61,14 +66,18 @@ def test_the_same_place_twice_is_rejected_before_routing():
     router = StraightRouter()
 
     with pytest.raises(SameLocationError):
-        _planner(InMemoryStations([]), router).plan("Origin, NE", "origin, ne")
+        _planner(InMemoryStations([station(1, 40.0, -100.0, "3.20")]), router).plan(
+            "Origin, NE", "origin, ne"
+        )
 
     assert router.calls == 0
 
 
 def test_unknown_places_are_reported():
     with pytest.raises(LocationNotFoundError):
-        _planner(InMemoryStations([])).plan("Atlantis, ZZ", "Far, ND")
+        _planner(InMemoryStations([station(1, 40.0, -100.0, "3.20")])).plan(
+            "Atlantis, ZZ", "Far, ND"
+        )
 
 
 def test_a_short_trip_with_no_station_on_the_way_is_priced_at_the_nearest_station():
@@ -94,6 +103,10 @@ def test_a_long_trip_with_no_station_on_the_way_has_no_plan():
         _planner(stations).plan("Origin, NE", "Far, ND")
 
 
-def test_a_short_trip_with_no_stations_anywhere_has_no_plan():
-    with pytest.raises(NoFuelPlanError):
-        _planner(InMemoryStations([])).plan("Origin, NE", "Midway, NE")
+def test_planning_without_fuel_prices_says_how_to_load_them():
+    router = StraightRouter()
+
+    with pytest.raises(FuelPricesNotLoadedError, match="make data"):
+        _planner(InMemoryStations([]), router).plan("Origin, NE", "Midway, NE")
+
+    assert router.calls == 0

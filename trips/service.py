@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from core.exceptions import NoStationAlongRouteError, SameLocationError
+from core.exceptions import FuelPricesNotLoadedError, NoStationAlongRouteError, SameLocationError
 from core.geo import BoundingBox, Coordinates, haversine_miles
 from locations.resolvers import ResolvedLocation
 from planning.plan import FuelPlan, FuelPlanner
@@ -23,6 +23,8 @@ class LocationResolver(Protocol):
 
 
 class StationSource(Protocol):
+    def has_stations(self) -> bool: ...
+
     def find_within(self, box: BoundingBox) -> list[Station]: ...
 
     def find_nearest(self, point: Coordinates) -> Station | None: ...
@@ -56,6 +58,8 @@ class TripPlanner:
         self._vehicle = vehicle
 
     def plan(self, start: str, finish: str) -> TripPlan:
+        if not self._stations.has_stations():
+            raise FuelPricesNotLoadedError()
         timings: dict[str, float] = {}
         with _timed(timings, "resolve"):
             origin = self._resolver.resolve(start)

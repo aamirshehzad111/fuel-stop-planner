@@ -57,6 +57,9 @@ class InMemoryStations:
         self.stations = stations
         self.boxes = []
 
+    def has_stations(self):
+        return bool(self.stations)
+
     def find_within(self, box: BoundingBox):
         self.boxes.append(box)
         return [s for s in self.stations if box.contains(s.coordinates)]

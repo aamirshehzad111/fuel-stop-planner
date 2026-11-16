@@ -53,6 +53,16 @@ class NoStationAlongRouteError(NoFuelPlanError):
     """No station from the price list is near the route at all."""
 
 
+class FuelPricesNotLoadedError(Exception):
+    """The station table is empty: the setup step that loads the data was skipped."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "No fuel prices are loaded. Run `make data` (or `python manage.py import_places` "
+            "then `python manage.py import_fuel_prices`) and try again."
+        )
+
+
 class ProviderError(Exception):
     """An external service failed."""
 
