@@ -11,9 +11,9 @@ class DomainError(Exception):
 
 
 class LocationNotFoundError(DomainError):
-    def __init__(self, query: str) -> None:
+    def __init__(self, query: str, what: str = "") -> None:
         super().__init__(
-            f"Could not find {query!r}. Try a city and state (e.g. 'Dallas, TX'), "
+            f"Could not find {what or ''}{query!r}. Try a city and state (e.g. 'Dallas, TX'), "
             "a ZIP code, a street address or 'latitude,longitude'."
         )
         self.query = query

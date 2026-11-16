@@ -21,6 +21,8 @@ from locations.names import parse_state
 
 _COORDINATES = re.compile(r"^(?P<lat>[-+]?\d+(?:\.\d+)?)\s*[,\s]\s*(?P<lng>[-+]?\d+(?:\.\d+)?)$")
 _POSTAL_CODE = re.compile(r"^(?P<code>\d{5})(?:-\d{4})?$")
+# ZIP prefixes of Puerto Rico and the Virgin Islands (006-009) and the Pacific territories (969).
+_TERRITORY_ZIP_PREFIXES = ("006", "007", "008", "009", "969")
 _CITY_STATE = re.compile(
     r"^(?P<city>[^,\d][^,]*?)\s*,\s*(?P<state>[^,\d]+?)(?:\s+\d{5}(?:-\d{4})?)?"
     r"(?:\s*,\s*(?:USA|US|United States))?$",
@@ -69,10 +71,14 @@ class PostalCodeResolver:
         match = _POSTAL_CODE.match(query)
         if match is None:
             return None
-        postal_code = self._directory.find_postal_code(match["code"])
-        if postal_code is None:
-            return None
-        return ResolvedLocation(query, f"ZIP {postal_code.code}", postal_code.coordinates)
+        code = match["code"]
+        postal_code = self._directory.find_postal_code(code)
+        if postal_code is not None:
+            return ResolvedLocation(query, f"ZIP {postal_code.code}", postal_code.coordinates)
+        # Not sent to the geocoder: a bare number matches house numbers anywhere.
+        if code.startswith(_TERRITORY_ZIP_PREFIXES):
+            raise LocationOutsideUnitedStatesError(query, f"ZIP {code}, a US territory")
+        raise LocationNotFoundError(query, what="ZIP code ")
 
 
 class PlaceNameResolver:
