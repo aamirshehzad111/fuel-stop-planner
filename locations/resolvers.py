@@ -4,7 +4,7 @@ Resolvers are tried in order; the first that recognizes the text wins:
 
 1. `CoordinatesResolver`  "41.8781,-87.6298"
 2. `PostalCodeResolver`   "10001"              (local lookup, no external call)
-3. `PlaceNameResolver`    "Chicago, IL"        (local lookup, no external call)
+3. `PlaceNameResolver`    "Chicago, IL"        (local lookup, no external call; also "Chicago IL")
 4. `GeocoderResolver`     anything else: "New York", a street address, a landmark
 """
 
@@ -25,6 +25,10 @@ _CITY_STATE = re.compile(
     r"^(?P<city>[^,\d][^,]*?)\s*,\s*(?P<state>[^,\d]+?)(?:\s+\d{5}(?:-\d{4})?)?"
     r"(?:\s*,\s*(?:USA|US|United States))?$",
     re.IGNORECASE,
+)
+# "Chicago IL": without a comma, only a two-letter state code is taken as the state.
+_CITY_STATE_CODE = re.compile(
+    r"^(?P<city>[^,\d][^,]*?)\s+(?P<state>[A-Za-z]{2})(?:\s+\d{5}(?:-\d{4})?)?$"
 )
 _US_COUNTRY_CODE = "USA"
 
@@ -76,7 +80,7 @@ class PlaceNameResolver:
         self._directory = directory
 
     def resolve(self, query: str) -> ResolvedLocation | None:
-        match = _CITY_STATE.match(query)
+        match = _CITY_STATE.match(query) or _CITY_STATE_CODE.match(query)
         if match is None:
             return None
         state = parse_state(match["state"])

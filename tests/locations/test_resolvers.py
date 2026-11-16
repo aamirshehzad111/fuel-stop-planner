@@ -160,3 +160,19 @@ def test_text_without_letters_or_digits_is_not_sent_to_the_geocoder(resolver, ge
         resolver.resolve(query)
 
     assert geocoder.queries == []
+
+
+@pytest.mark.parametrize(
+    ("query", "label"),
+    [
+        ("Chicago IL", "Chicago, IL"),
+        ("st louis mo", "St. Louis, MO"),
+        ("New York NY", "New York, NY"),
+        ("Chicago IL 60601", "Chicago, IL"),
+    ],
+)
+def test_city_and_state_code_without_a_comma_are_looked_up_locally(
+    resolver, geocoder, query, label
+):
+    assert resolver.resolve(query).label == label
+    assert geocoder.queries == []
