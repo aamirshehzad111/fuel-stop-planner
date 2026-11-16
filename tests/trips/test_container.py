@@ -23,3 +23,17 @@ def test_openapi_schema_is_valid_and_warning_free(tmp_path):
     schema = (tmp_path / "schema.yaml").read_text()
     assert "/api/v1/trips/plan/" in schema
     assert "application/problem+json" in schema
+
+
+@pytest.mark.django_db
+def test_api_docs_show_only_the_trip_endpoint_under_a_clear_tag(client):
+    schema = client.get("/api/schema/", {"format": "json"}).json()
+
+    assert list(schema["paths"]) == ["/api/v1/trips/plan/"]
+    operation = schema["paths"]["/api/v1/trips/plan/"]["get"]
+    assert operation["tags"] == ["Trips"]
+    assert [parameter["name"] for parameter in operation["parameters"]] == [
+        "start",
+        "finish",
+        "format",
+    ]

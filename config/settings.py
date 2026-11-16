@@ -106,6 +106,14 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Fuel Stop Planner API",
     "DESCRIPTION": "Plans a driving route between two US locations and the cheapest fuel stops.",
     "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SORT_OPERATION_PARAMETERS": "trips.api.schema.parameter_order",
+    # Open the docs on the endpoint with "Try it out" ready; links can point at it.
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "tryItOutEnabled": True,
+        "defaultModelsExpandDepth": -1,
+    },
 }
 
 LOGGING = {

@@ -26,6 +26,7 @@ class TripPlanView(APIView):
 
     @extend_schema(
         operation_id="plan_trip",
+        tags=["Trips"],
         summary="Plan a trip's route and fuel stops",
         description=(
             "Resolves the start and finish (anywhere in the USA), makes one routing call, "
