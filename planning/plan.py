@@ -4,7 +4,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 import numpy as np
 
-from core.exceptions import NoFuelPlanError
+from core.exceptions import NoFuelPlanError, NoStationAlongRouteError
 from planning.corridor import RouteCorridor
 from planning.optimizer import FuelStopOptimizer, StopOption
 from planning.station import Station
@@ -60,11 +60,15 @@ class FuelPlanner:
         self._optimizer = optimizer
         self._max_offset_miles = max_offset_miles
 
+    @property
+    def max_offset_miles(self) -> float:
+        return self._max_offset_miles
+
     def plan(self, route: Route, stations: Sequence[Station]) -> FuelPlan:
         """Plan the purchases; raises NoFuelPlanError if part of the route is out of range."""
         along = self._stations_along(route, stations)
         if not along:
-            raise NoFuelPlanError(0, route.distance_miles, self._vehicle.range_miles)
+            raise NoStationAlongRouteError(0, route.distance_miles, self._vehicle.range_miles)
         # The vehicle sets off with an empty tank, so it first buys fuel at the start,
         # at the price of the first station on the route.
         first = along[0]
@@ -80,7 +84,7 @@ class FuelPlanner:
             gallons = Decimal(purchase.gallons).quantize(_HUNDREDTHS_OF_A_GALLON, ROUND_HALF_UP)
             if gallons == 0:
                 continue
-            cost = (gallons * option.station.price_per_gallon).quantize(_CENTS, ROUND_HALF_UP)
+            cost = _cost(gallons, option.station.price_per_gallon)
             stops.append(
                 FuelStop(
                     sequence=len(stops) + 1,
@@ -109,6 +113,34 @@ class FuelPlanner:
             notes=tuple(notes),
         )
 
+    def plan_single_fill_up(
+        self, route: Route, station: Station, distance_from_start_miles: float
+    ) -> FuelPlan:
+        """One fill-up before setting off, priced at a station that isn't on the route.
+
+        For a trip within range that passes no listed station.
+        """
+        if route.distance_miles > self._vehicle.range_miles:
+            raise NoFuelPlanError(0, route.distance_miles, self._vehicle.range_miles)
+        gallons = Decimal(route.distance_miles / self._vehicle.miles_per_gallon).quantize(
+            _HUNDREDTHS_OF_A_GALLON, ROUND_HALF_UP
+        )
+        stop = FuelStop(
+            sequence=1,
+            station=station,
+            route_mile=0.0,
+            offset_miles=distance_from_start_miles,
+            gallons=gallons,
+            cost=_cost(gallons, station.price_per_gallon),
+            departure=True,
+        )
+        note = (
+            f"No station from the price list is within {self._max_offset_miles:g} miles of this "
+            f"route, so the fuel is priced at {station.name} in {station.city}, {station.state}, "
+            f"the nearest listed station to the start ({distance_from_start_miles:.0f} miles away)."
+        )
+        return FuelPlan(stops=(stop,), total_gallons=gallons, total_cost=stop.cost, notes=(note,))
+
     def _stations_along(self, route: Route, stations: Sequence[Station]) -> list[_Located]:
         """Stations near the route in route order, keeping the cheapest at each position.
 
@@ -132,6 +164,10 @@ class FuelPlanner:
             if current is None or _preference(option) < _preference(current):
                 cheapest[position] = option
         return sorted(cheapest.values(), key=lambda option: option.route_mile)
+
+
+def _cost(gallons: Decimal, price_per_gallon: Decimal) -> Decimal:
+    return (gallons * price_per_gallon).quantize(_CENTS, ROUND_HALF_UP)
 
 
 def _preference(option: _Located) -> tuple[Decimal, float, int]:

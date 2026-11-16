@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "locations",
     "stations",
+    "trips",
 ]
 
 MIDDLEWARE = [
@@ -98,6 +99,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.AnonRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"anon": env.str("API_RATE_LIMIT", default="60/minute")},
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "trips.api.errors.problem_details_exception_handler",
 }
 
 SPECTACULAR_SETTINGS = {
@@ -112,6 +114,16 @@ LOGGING = {
     "formatters": {"plain": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"}},
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
     "root": {"handlers": ["console"], "level": env.str("LOG_LEVEL", default="INFO")},
+}
+
+# Routing and geocoding (https://openrouteservice.org).
+OPENROUTESERVICE = {
+    "API_KEY": env.str("ORS_API_KEY", default=""),
+    "BASE_URL": env.str("ORS_BASE_URL", default="https://api.openrouteservice.org"),
+    "PROFILE": "driving-car",
+    "TIMEOUT_SECONDS": 20,
+    "ROUTE_CACHE_SECONDS": 60 * 60 * 24,
+    "GEOCODE_CACHE_SECONDS": 60 * 60 * 24 * 30,
 }
 
 # Trip planning.

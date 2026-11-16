@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ plan.start.label }} to {{ plan.finish.label }} · Fuel Stop Planner</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    :root { --ink: #1d2433; --muted: #5d677a; --line: #e3e7ee; --accent: #0b6bcb; --stop: #e8590c; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { display: flex; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); }
+    aside { width: 380px; max-width: 100%; overflow-y: auto; padding: 20px; border-right: 1px solid var(--line); background: #fff; }
+    #map { flex: 1; min-height: 50vh; }
+    h1 { font-size: 19px; margin: 0 0 4px; }
+    .muted { color: var(--muted); }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+    .stat { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+    .stat b { display: block; font-size: 18px; }
+    .stat span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+    ol { list-style: none; padding: 0; margin: 0; }
+    li { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+    .badge { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--stop); color: #fff;
+             font-weight: 600; font-size: 13px; display: grid; place-items: center; }
+    .note { background: #fff8e6; border: 1px solid #f5d68a; border-radius: 8px; padding: 8px 10px; margin: 12px 0; font-size: 13px; }
+    footer { margin-top: 16px; font-size: 13px; }
+    a { color: var(--accent); }
+    .stop-icon { background: var(--stop); color: #fff; border: 2px solid #fff; border-radius: 50%;
+                 font: 600 12px system-ui, sans-serif; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+    @media (max-width: 760px) { body { flex-direction: column-reverse; } aside { width: 100%; border-right: 0; } }
+  </style>
+</head>
+<body>
+  <aside>
+    <h1>{{ plan.start.label }} → {{ plan.finish.label }}</h1>
+    <div class="muted">{{ plan.route.distance_miles }} miles · about {{ plan.route.duration_hours }} hours of driving</div>
+
+    <div class="stats">
+      <div class="stat"><span>Fuel cost</span><b>${{ plan.summary.total_cost|floatformat:2 }}</b></div>
+      <div class="stat"><span>Fuel</span><b>{{ plan.summary.total_gallons|floatformat:2 }} gal</b></div>
+      <div class="stat"><span>Stops</span><b>{{ plan.summary.stop_count }}</b></div>
+      <div class="stat"><span>Vehicle</span><b>{{ plan.summary.range_miles|floatformat:0 }} mi · {{ plan.summary.miles_per_gallon|floatformat:0 }} mpg</b></div>
+    </div>
+
+    {% for note in plan.notes %}<div class="note">{{ note }}</div>{% endfor %}
+
+    <ol>
+      {% for stop in plan.fuel_stops %}
+      <li>
+        <div class="badge">{{ stop.sequence }}</div>
+        <div>
+          <b>{{ stop.station.name }}</b><br>
+          <span class="muted">{{ stop.station.city }}, {{ stop.station.state }} ·
+            {% if stop.departure %}before setting off{% else %}mile {{ stop.route_mile|floatformat:0 }}{% endif %}</span><br>
+          {{ stop.gallons|floatformat:2 }} gal × ${{ stop.price_per_gallon|floatformat:3 }} = <b>${{ stop.cost|floatformat:2 }}</b>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+
+    <footer class="muted">
+      <a href="?start={{ plan.start.query|urlencode }}&amp;finish={{ plan.finish.query|urlencode }}">JSON</a> ·
+      <a href="/api/docs/">API docs</a>
+    </footer>
+  </aside>
+  <div id="map" role="region" aria-label="Route map"></div>
+
+  {{ plan_json }}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const plan = JSON.parse(document.getElementById("trip-plan").textContent);
+    const escape = (text) => String(text).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+    const map = L.map("map");
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      // OpenStreetMap blocks tile requests that don't say which site they come from;
+      // the page itself keeps Django's stricter same-origin policy.
+      referrerPolicy: "strict-origin-when-cross-origin",
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+
+    const line = L.polyline(plan.route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+                            { color: "#0b6bcb", weight: 5, opacity: 0.8 }).addTo(map);
+    map.fitBounds(line.getBounds(), { padding: [30, 30] });
+
+    const end = (place, colour) => L.circleMarker([place.latitude, place.longitude],
+      { radius: 8, color: "#fff", weight: 2, fillColor: colour, fillOpacity: 1 })
+      .bindPopup(`<b>${escape(place.label)}</b>`).addTo(map);
+    end(plan.start, "#2b8a3e");
+    end(plan.finish, "#c92a2a");
+
+    for (const stop of plan.fuel_stops) {
+      const icon = L.divIcon({ className: "stop-icon", html: String(stop.sequence), iconSize: [24, 24] });
+      const where = stop.departure ? "Fill up before setting off" : `Mile ${Math.round(stop.route_mile)}`;
+      L.marker([stop.station.latitude, stop.station.longitude], { icon, title: stop.station.name })
+        .bindPopup(`<b>${stop.sequence}. ${escape(stop.station.name)}</b><br>${escape(stop.station.city)}, ${escape(stop.station.state)}<br>` +
+                   `${where}<br>${stop.gallons.toFixed(2)} gal × $${stop.price_per_gallon.toFixed(3)} = <b>$${stop.cost.toFixed(2)}</b>`)
+        .addTo(map);
+    }
+  </script>
+</body>
+</html>

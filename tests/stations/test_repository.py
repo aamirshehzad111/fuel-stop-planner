@@ -50,3 +50,22 @@ def test_find_within_returns_domain_stations(stations):
             coordinates=Coordinates(36.5, -95.2),
         )
     ]
+
+
+def test_find_nearest_returns_the_closest_station(stations):
+    nearest = DjangoStationRepository().find_nearest(Coordinates(36.0, -96.0))
+
+    assert nearest is not None
+    assert nearest.id == 1
+
+
+def test_find_nearest_looks_far_when_nothing_is_close(stations):
+    # Station 2 (Wisconsin) is about 300 miles from this point in Michigan.
+    nearest = DjangoStationRepository().find_nearest(Coordinates(44.5, -85.0))
+
+    assert nearest is not None
+    assert nearest.id == 2
+
+
+def test_find_nearest_with_no_stations():
+    assert DjangoStationRepository().find_nearest(Coordinates(36.0, -96.0)) is None
