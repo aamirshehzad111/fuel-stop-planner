@@ -17,6 +17,10 @@ _CENTS = Decimal("0.01")
 _HUNDREDTHS_OF_A_GALLON = Decimal("0.01")
 # Beyond this, a note explains where the departure fill-up's price comes from.
 _FAR_FIRST_STATION_MILES = 25
+# Gallons are rounded to hundredths, so "just enough" fuel can be off by this much distance.
+_ROUNDING_MILES = 0.15
+# A first purchase below this share of a tank gets a note saying why it's so small.
+_SMALL_DEPARTURE_SHARE_OF_TANK = 0.25
 # Half of Earth's circumference: no point is farther from a route than this.
 _ANY_DISTANCE_MILES = math.pi * EARTH_RADIUS_MILES
 
@@ -110,6 +114,8 @@ class FuelPlanner:
                 f"in {station.city}, {station.state} (mile {first.route_mile:.0f}), the first "
                 "listed station on the route."
             )
+        elif note := self._small_departure_note(stops):
+            notes.append(note)
         return FuelPlan(
             stops=tuple(stops),
             total_gallons=sum((stop.gallons for stop in stops), Decimal(0)),
@@ -144,6 +150,27 @@ class FuelPlanner:
             f"the nearest listed station to the start ({distance_from_start_miles:.0f} miles away)."
         )
         return FuelPlan(stops=(stop,), total_gallons=gallons, total_cost=stop.cost, notes=(note,))
+
+    def _small_departure_note(self, stops: list[FuelStop]) -> str | None:
+        """Explain a small first purchase, at a station in the start town, that only buys
+        enough to reach a cheaper station further on."""
+        if len(stops) < 2 or not stops[0].departure:
+            return None
+        departure, following = stops[0], stops[1]
+        if float(departure.gallons) >= _SMALL_DEPARTURE_SHARE_OF_TANK * self._vehicle.tank_gallons:
+            return None
+        reach_miles = float(departure.gallons) * self._vehicle.miles_per_gallon
+        just_enough = abs(reach_miles - following.route_mile) <= _ROUNDING_MILES
+        saving = departure.price_per_gallon - following.price_per_gallon
+        if not just_enough or saving <= 0:
+            return None
+        here, there = departure.station, following.station
+        return (
+            f"Only {departure.gallons} gallons are bought at {here.name} in {here.city}, "
+            f"{here.state}, at the start: just enough to reach {there.name} in {there.city}, "
+            f"{there.state} (mile {following.route_mile:.0f}), where fuel is ${saving:.2f} a "
+            "gallon cheaper."
+        )
 
     @staticmethod
     def _distance_from_route(route: Route, station: Station) -> float:

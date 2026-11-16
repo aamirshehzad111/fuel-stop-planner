@@ -158,3 +158,56 @@ def test_a_single_fill_up_reports_the_stations_distance_from_the_route(planner):
 
     assert plan.stops[0].offset_miles == pytest.approx(156.6, abs=0.5)
     assert "172 miles" in plan.notes[0]
+
+
+def test_a_small_departure_purchase_is_explained(planner):
+    # Fuel is much cheaper 69 miles on, so the plan buys just enough to get there.
+    stations = [
+        _station(1, 40.0, -100.0, "4.00"),
+        _station(2, 41.0, -100.0, "3.00"),
+        _station(3, 46.0, -100.0, "3.50"),
+    ]
+
+    plan = planner.plan(ROUTE, stations)
+
+    departure, cheaper = plan.stops[0], plan.stops[1]
+    assert departure.gallons == Decimal(str(round(cheaper.route_mile / 10, 2)))
+    assert plan.notes == (
+        f"Only {departure.gallons} gallons are bought at STOP 1 in Town, NE, at the start: just "
+        f"enough to reach STOP 2 in Town, NE (mile {cheaper.route_mile:.0f}), where fuel is $1.00 "
+        "a gallon cheaper.",
+    )
+
+
+def test_a_full_departure_needs_no_explanation(planner):
+    plan = planner.plan(
+        ROUTE, [_station(1, 40.0, -100.0, "3.00"), _station(2, 44.0, -100.0, "3.5")]
+    )
+
+    assert plan.stops[0].gallons == 50
+    assert plan.notes == ()
+
+
+def test_a_large_departure_that_reaches_a_cheaper_station_needs_no_explanation(planner):
+    # 27.6 gallons is more than a quarter of a tank: nothing looks odd about it.
+    stations = [_station(1, 40.0, -100.0, "3.40"), _station(2, 44.0, -100.0, "3.00")]
+
+    plan = planner.plan(ROUTE, stations)
+
+    assert plan.stops[0].gallons > 25
+    assert plan.notes == ()
+
+
+def test_a_small_departure_far_from_any_station_is_explained_once(planner):
+    # The first station is 35 miles in, so the departure is priced there, not bought there.
+    stations = [
+        _station(1, 40.5, -100.0, "4.00"),
+        _station(2, 40.6, -100.0, "3.00"),
+        _station(3, 46.0, -100.0, "3.50"),
+    ]
+
+    plan = planner.plan(ROUTE, stations)
+
+    assert plan.stops[0].gallons < Decimal("12.5")
+    assert len(plan.notes) == 1
+    assert plan.notes[0].startswith("No station from the price list is within 25 miles")
