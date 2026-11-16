@@ -32,3 +32,10 @@ def test_map_page_shows_errors(client, failing_planner):
     assert response["Content-Type"].startswith("text/html")
     assert "Could not find" in response.content.decode()
 
+
+def test_map_tiles_tell_openstreetmap_which_site_asks(client, fake_planner):
+    # OpenStreetMap serves an "Access blocked" tile to requests without a Referer, and
+    # Django's default Referrer-Policy (same-origin) stops browsers sending one.
+    html = client.get(URL, TRIP).content.decode()
+
+    assert 'referrerPolicy: "strict-origin-when-cross-origin"' in html
