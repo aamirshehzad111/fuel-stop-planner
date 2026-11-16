@@ -113,6 +113,8 @@ class ResolverChain:
 
     def resolve(self, query: str) -> ResolvedLocation:
         text = query.strip()
+        if not any(character.isalnum() for character in text):
+            raise LocationNotFoundError(text)  # nothing a geocoder could search for
         for resolver in self._resolvers:
             location = resolver.resolve(text)
             if location is not None:

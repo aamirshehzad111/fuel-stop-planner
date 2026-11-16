@@ -152,3 +152,11 @@ def test_places_outside_the_us_are_rejected(resolver, query):
 def test_nothing_found_anywhere(resolver):
     with pytest.raises(LocationNotFoundError, match="Could not find 'Atlantis, ZZ'"):
         resolver.resolve("Atlantis, ZZ")
+
+
+@pytest.mark.parametrize("query", ["🚚", "!!!", "-- ,"])
+def test_text_without_letters_or_digits_is_not_sent_to_the_geocoder(resolver, geocoder, query):
+    with pytest.raises(LocationNotFoundError):
+        resolver.resolve(query)
+
+    assert geocoder.queries == []
