@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 import numpy as np
@@ -14,6 +15,10 @@ _ROUTE_TOO_LONG = 2004
 _POINT_NOT_ROUTABLE = 2010
 _ROUTE_NOT_FOUND = 2009
 _SECONDS_PER_HOUR = 3600
+_UNROUTABLE_POINT = re.compile(
+    r"radius of (?P<radius>[\d.]+) meters of specified coordinate (?P<index>\d)"
+)
+_ENDS = ("start", "finish")
 
 
 class OpenRouteServiceRouteProvider:
@@ -27,8 +32,6 @@ class OpenRouteServiceRouteProvider:
         payload = {
             "coordinates": [[origin.lng, origin.lat], [destination.lng, destination.lat]],
             "instructions": False,
-            # Snap to the nearest road however far it is (town centers can sit in a park).
-            "radiuses": [-1, -1],
         }
         try:
             body = self._client.post_directions(self._profile, payload)
@@ -37,10 +40,24 @@ class OpenRouteServiceRouteProvider:
                 raise RouteNotFoundError(
                     "The trip is longer than the routing service allows (6,000 km)."
                 ) from error
-            if error.code in (_POINT_NOT_ROUTABLE, _ROUTE_NOT_FOUND):
+            if error.code == _POINT_NOT_ROUTABLE:
+                raise RouteNotFoundError(_no_road_message(str(error))) from error
+            if error.code == _ROUTE_NOT_FOUND:
                 raise RouteNotFoundError("No drivable route between these locations.") from error
             raise
         return _parse_route(body)
+
+
+def _no_road_message(service_message: str) -> str:
+    """The service only looks a few hundred metres from each point for a road."""
+    match = _UNROUTABLE_POINT.search(service_message)
+    if match is None or int(match["index"]) >= len(_ENDS):
+        return "No road near the start or the finish. Try a nearby town or a street address."
+    end = _ENDS[int(match["index"])]
+    return (
+        f"The routing service found no road within {float(match['radius']):.0f} m of the {end} "
+        "(or doesn't cover that area). Try a nearby town or a street address."
+    )
 
 
 def _parse_route(body: dict[str, Any]) -> Route:
