@@ -163,7 +163,8 @@ class FuelStopOptimizer:
         return purchases[::-1]
 
 
-def _relax(arrivals: dict[int, _State], key: int, candidate: _State) -> None:
+def _relax(arrivals: dict[int, _State], key: int, offer: _State) -> None:
+    """Keep the cheaper of the current and the offered way to arrive in this state."""
     current = arrivals.get(key)
-    if current is None or candidate.cost < current.cost - _EPSILON:
-        arrivals[key] = candidate
+    if current is None or offer.cost < current.cost - _EPSILON:
+        arrivals[key] = offer
