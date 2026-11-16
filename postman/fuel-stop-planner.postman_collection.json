@@ -1,0 +1,708 @@
+{
+  "info": {
+    "name": "Fuel Stop Planner",
+    "description": "Plans a driving route between two places in the USA and the cheapest fuel stops for a vehicle with a 500-mile range that does 10 mpg.\n\nRun the server (`make run`), then run the collection. Every request has tests; trip requests also add a Visualize tab with the route and its stops.\n\nSet `baseUrl` if the server isn't on http://127.0.0.1:8000.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000"
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Runs after every request in the collection.",
+          "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+          "",
+          "if (pm.response.code === 200 && contentType.includes(\"application/json\")) {",
+          "  const plan = pm.response.json();",
+          "",
+          "  pm.test(\"Stop costs add up to the total\", () => {",
+          "    const sum = plan.fuel_stops.reduce((total, stop) => total + stop.cost, 0);",
+          "    pm.expect(sum).to.be.closeTo(plan.summary.total_cost, 0.005);",
+          "  });",
+          "  pm.test(\"Every gallon the trip burns is bought (miles / mpg)\", () => {",
+          "    const needed = plan.route.distance_miles / plan.summary.miles_per_gallon;",
+          "    pm.expect(plan.summary.total_gallons).to.be.closeTo(needed, 0.05);",
+          "  });",
+          "  pm.test(\"No stop buys more than a full tank\", () => {",
+          "    const tank = plan.summary.range_miles / plan.summary.miles_per_gallon;",
+          "    plan.fuel_stops.forEach((stop) => pm.expect(stop.gallons).to.be.at.most(tank));",
+          "  });",
+          "  pm.test(\"Each cost is gallons x price\", () => {",
+          "    plan.fuel_stops.forEach((stop) =>",
+          "      pm.expect(stop.cost).to.be.closeTo(stop.gallons * stop.price_per_gallon, 0.0051));",
+          "  });",
+          "",
+          "  // Visualize tab: the route and its stops, drawn without map tiles.",
+          "  const width = 640, height = 360, pad = 24;",
+          "  const points = plan.route.geometry.coordinates;",
+          "  const lngs = points.map((p) => p[0]), lats = points.map((p) => p[1]);",
+          "  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);",
+          "  const minLat = Math.min(...lats), maxLat = Math.max(...lats);",
+          "  const xScale = Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);",
+          "  const scale = Math.min((width - 2 * pad) / ((maxLng - minLng) * xScale || 1),",
+          "                         (height - 2 * pad) / ((maxLat - minLat) || 1));",
+          "  const project = (lng, lat) => [pad + (lng - minLng) * xScale * scale, height - pad - (lat - minLat) * scale];",
+          "  const route = points.map((p) => project(p[0], p[1]).map((v) => v.toFixed(1)).join(\",\")).join(\" \");",
+          "  const stops = plan.fuel_stops.map((stop) => {",
+          "    const [x, y] = project(stop.station.longitude, stop.station.latitude);",
+          "    return Object.assign({ x: x.toFixed(1), y: y.toFixed(1) }, stop);",
+          "  });",
+          "  const [startX, startY] = project(plan.start.longitude, plan.start.latitude);",
+          "  const [finishX, finishY] = project(plan.finish.longitude, plan.finish.latitude);",
+          "",
+          "  pm.visualizer.set(`",
+          "    <style>",
+          "      body { font: 13px system-ui, sans-serif; color: #1d2433; }",
+          "      table { border-collapse: collapse; margin-top: 12px; }",
+          "      td, th { padding: 4px 10px; border-bottom: 1px solid #e3e7ee; text-align: left; }",
+          "      .num { text-align: right; }",
+          "    </style>",
+          "    <h3>{{plan.start.label}} &rarr; {{plan.finish.label}}</h3>",
+          "    <p>{{plan.route.distance_miles}} miles &middot; {{plan.summary.stop_count}} stops &middot;",
+          "       {{plan.summary.total_gallons}} gal &middot; <b>\\${{plan.summary.total_cost}}</b></p>",
+          "    <svg width=\"{{width}}\" height=\"{{height}}\" style=\"background:#f6f8fb;border:1px solid #e3e7ee;border-radius:8px\">",
+          "      <polyline points=\"{{route}}\" fill=\"none\" stroke=\"#0b6bcb\" stroke-width=\"3\"/>",
+          "      <circle cx=\"{{startX}}\" cy=\"{{startY}}\" r=\"6\" fill=\"#2b8a3e\"/>",
+          "      <circle cx=\"{{finishX}}\" cy=\"{{finishY}}\" r=\"6\" fill=\"#c92a2a\"/>",
+          "      {{#each stops}}",
+          "        <circle cx=\"{{x}}\" cy=\"{{y}}\" r=\"9\" fill=\"#e8590c\" stroke=\"#fff\" stroke-width=\"2\"/>",
+          "        <text x=\"{{x}}\" y=\"{{y}}\" dy=\"4\" text-anchor=\"middle\" font-size=\"10\" fill=\"#fff\">{{sequence}}</text>",
+          "      {{/each}}",
+          "    </svg>",
+          "    <table>",
+          "      <tr><th>#</th><th>Station</th><th>Where</th><th class=\"num\">Gallons</th><th class=\"num\">Price</th><th class=\"num\">Cost</th></tr>",
+          "      {{#each stops}}",
+          "        <tr><td>{{sequence}}</td><td>{{station.name}}</td>",
+          "            <td>{{station.city}}, {{station.state}} &middot; {{#if departure}}before setting off{{else}}mile {{route_mile}}{{/if}}</td>",
+          "            <td class=\"num\">{{gallons}}</td><td class=\"num\">\\${{price_per_gallon}}</td><td class=\"num\">\\${{cost}}</td></tr>",
+          "      {{/each}}",
+          "    </table>",
+          "    {{#each plan.notes}}<p><i>{{this}}</i></p>{{/each}}",
+          "  `, { plan, route, stops, width, height, startX, startY, finishX, finishY });",
+          "}",
+          "",
+          "if (pm.response.code >= 400 && pm.response.code !== 429) {",
+          "  pm.test(\"Errors are problem details\", () => {",
+          "    pm.expect(contentType).to.eql(\"application/problem+json\");",
+          "    pm.expect(pm.response.json()).to.include.all.keys(\"type\", \"title\", \"status\", \"code\", \"detail\");",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Trips",
+      "item": [
+        {
+          "name": "Chicago to Houston (city and state)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=Chicago, IL&finish=Houston, TX",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "Chicago, IL"
+                },
+                {
+                  "key": "finish",
+                  "value": "Houston, TX"
+                }
+              ]
+            },
+            "description": "The everyday case: two towns given as 'City, ST', looked up locally, so the only external call is the route."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const plan = pm.response.json();",
+                  "pm.test(\"Starts with the fill-up before setting off\", () => pm.expect(plan.fuel_stops[0].departure).to.be.true);",
+                  "pm.test(\"Stops are in route order\", () => {",
+                  "  const miles = plan.fuel_stops.map((stop) => stop.route_mile);",
+                  "  pm.expect(miles).to.eql([...miles].sort((a, b) => a - b));",
+                  "});",
+                  "pm.test(\"Server-Timing shows where the time went\", () => pm.expect(pm.response.headers.get(\"Server-Timing\")).to.include(\"route;dur=\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "New York to Los Angeles (coast to coast)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=New York, NY&finish=Los Angeles, CA",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "New York, NY"
+                },
+                {
+                  "key": "finish",
+                  "value": "Los Angeles, CA"
+                }
+              ]
+            },
+            "description": "About 2,800 miles: at least six fill-ups for a 500-mile range."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const plan = pm.response.json();",
+                  "pm.test(\"Enough stops for a 500-mile range\", () =>",
+                  "  pm.expect(plan.summary.stop_count).to.be.at.least(Math.ceil(plan.route.distance_miles / 500)));",
+                  "pm.test(\"No stretch between stops is longer than the range\", () => {",
+                  "  const miles = [0, ...plan.fuel_stops.slice(1).map((stop) => stop.route_mile), plan.route.distance_miles];",
+                  "  for (let i = 1; i < miles.length; i++) pm.expect(miles[i] - miles[i - 1]).to.be.at.most(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ZIP code to ZIP code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=10001&finish=90012",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "10001"
+                },
+                {
+                  "key": "finish",
+                  "value": "90012"
+                }
+              ]
+            },
+            "description": "Five-digit ZIP codes are looked up locally too."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Both ends are ZIP codes\", () => {",
+                  "  const plan = pm.response.json();",
+                  "  pm.expect([plan.start.label, plan.finish.label]).to.eql([\"ZIP 10001\", \"ZIP 90012\"]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Street address to a bare city name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=1600 Pennsylvania Ave NW, Washington, DC&finish=Chicago",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "1600 Pennsylvania Ave NW, Washington, DC"
+                },
+                {
+                  "key": "finish",
+                  "value": "Chicago"
+                }
+              ]
+            },
+            "description": "Anything that isn't coordinates, a ZIP code or 'City, ST' goes to the geocoder (one extra call each, cached)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Both places are understood\", () => {",
+                  "  const plan = pm.response.json();",
+                  "  pm.expect(plan.start.label).to.include(\"Washington, DC\");",
+                  "  pm.expect(plan.finish.label).to.eql(\"Chicago, IL\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Coordinates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=39.7392,-104.9903&finish=41.8781,-87.6298",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "39.7392,-104.9903"
+                },
+                {
+                  "key": "finish",
+                  "value": "41.8781,-87.6298"
+                }
+              ]
+            },
+            "description": "'latitude,longitude' is used as given."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Coordinates are kept\", () => pm.expect(pm.response.json().start.latitude).to.eql(39.7392));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Short trip with no station on the way",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=Los Angeles, CA&finish=San Diego, CA",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "Los Angeles, CA"
+                },
+                {
+                  "key": "finish",
+                  "value": "San Diego, CA"
+                }
+              ]
+            },
+            "description": "The price list has no station between Los Angeles and San Diego. The trip is within range, so it gets one fill-up priced at the nearest listed station, and a note says so."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const plan = pm.response.json();",
+                  "pm.test(\"One fill-up before setting off\", () => {",
+                  "  pm.expect(plan.summary.stop_count).to.eql(1);",
+                  "  pm.expect(plan.fuel_stops[0].departure).to.be.true;",
+                  "});",
+                  "pm.test(\"A note explains the price\", () => pm.expect(plan.notes[0]).to.include(\"nearest listed station\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Map page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=Chicago, IL&finish=Houston, TX&format=html",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "Chicago, IL"
+                },
+                {
+                  "key": "finish",
+                  "value": "Houston, TX"
+                },
+                {
+                  "key": "format",
+                  "value": "html"
+                }
+              ]
+            },
+            "description": "The same trip drawn on a map; every JSON response links to it as map_url."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Is an HTML page\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"text/html\"));",
+                  "pm.test(\"Draws the trip\", () => pm.expect(pm.response.text()).to.include(\"Chicago, IL → Houston, TX\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Errors",
+      "item": [
+        {
+          "name": "Missing finish",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=Chicago, IL",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "Chicago, IL"
+                }
+              ]
+            },
+            "description": "Missing or blank parameters are a 400 with the reason per parameter."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Code is invalid_request\", () => pm.expect(pm.response.json().code).to.eql(\"invalid_request\"));",
+                  "",
+                  "pm.test(\"Names the missing parameter\", () => pm.expect(pm.response.json().errors).to.have.property(\"finish\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Same place twice",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=Chicago, IL&finish=chicago, illinois",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "Chicago, IL"
+                },
+                {
+                  "key": "finish",
+                  "value": "chicago, illinois"
+                }
+              ]
+            },
+            "description": "Spelled differently, still the same place."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Code is same_location\", () => pm.expect(pm.response.json().code).to.eql(\"same_location\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Outside the USA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=Toronto, ON&finish=Chicago, IL",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "Toronto, ON"
+                },
+                {
+                  "key": "finish",
+                  "value": "Chicago, IL"
+                }
+              ]
+            },
+            "description": "Places abroad are found, then rejected, instead of being matched to a US namesake."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Code is location_outside_usa\", () => pm.expect(pm.response.json().code).to.eql(\"location_outside_usa\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown place",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=Nowhereville, ZZ&finish=Chicago, IL",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "Nowhereville, ZZ"
+                },
+                {
+                  "key": "finish",
+                  "value": "Chicago, IL"
+                }
+              ]
+            },
+            "description": "Nothing matches."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Code is location_not_found\", () => pm.expect(pm.response.json().code).to.eql(\"location_not_found\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "No station within range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=San Francisco, CA&finish=Seattle, WA",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "San Francisco, CA"
+                },
+                {
+                  "key": "finish",
+                  "value": "Seattle, WA"
+                }
+              ]
+            },
+            "description": "The price list has no station along the first 550 miles of San Francisco to Seattle, more than the 500-mile range."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Code is no_fuel_plan\", () => pm.expect(pm.response.json().code).to.eql(\"no_fuel_plan\"));",
+                  "",
+                  "pm.test(\"Says where the gap is\", () => pm.expect(pm.response.json().detail).to.include(\"between mile 0 and mile\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wrong method",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/trips/plan/?start=Chicago, IL&finish=Houston, TX",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "trips",
+                "plan",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "Chicago, IL"
+                },
+                {
+                  "key": "finish",
+                  "value": "Houston, TX"
+                }
+              ]
+            },
+            "description": "Only GET is allowed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 405\", () => pm.response.to.have.status(405));",
+                  "pm.test(\"Code is method_not_allowed\", () => pm.expect(pm.response.json().code).to.eql(\"method_not_allowed\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
