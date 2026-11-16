@@ -1,3 +1,4 @@
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
@@ -5,6 +6,7 @@ from decimal import ROUND_HALF_UP, Decimal
 import numpy as np
 
 from core.exceptions import NoFuelPlanError, NoStationAlongRouteError
+from core.geo import EARTH_RADIUS_MILES
 from planning.corridor import RouteCorridor
 from planning.optimizer import FuelStopOptimizer, StopOption
 from planning.station import Station
@@ -15,6 +17,8 @@ _CENTS = Decimal("0.01")
 _HUNDREDTHS_OF_A_GALLON = Decimal("0.01")
 # Beyond this, a note explains where the departure fill-up's price comes from.
 _FAR_FIRST_STATION_MILES = 25
+# Half of Earth's circumference: no point is farther from a route than this.
+_ANY_DISTANCE_MILES = math.pi * EARTH_RADIUS_MILES
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,7 +133,7 @@ class FuelPlanner:
             sequence=1,
             station=station,
             route_mile=0.0,
-            offset_miles=distance_from_start_miles,
+            offset_miles=self._distance_from_route(route, station),
             gallons=gallons,
             cost=_cost(gallons, station.price_per_gallon),
             departure=True,
@@ -140,6 +144,14 @@ class FuelPlanner:
             f"the nearest listed station to the start ({distance_from_start_miles:.0f} miles away)."
         )
         return FuelPlan(stops=(stop,), total_gallons=gallons, total_cost=stop.cost, notes=(note,))
+
+    @staticmethod
+    def _distance_from_route(route: Route, station: Station) -> float:
+        point = np.array([[station.coordinates.lat, station.coordinates.lng]])
+        located = RouteCorridor(route.path, route.distance_miles).locate(
+            point, max_offset_miles=_ANY_DISTANCE_MILES
+        )
+        return float(located.offsets_miles[0])
 
     def _stations_along(self, route: Route, stations: Sequence[Station]) -> list[_Located]:
         """Stations near the route in route order, keeping the cheapest at each position.

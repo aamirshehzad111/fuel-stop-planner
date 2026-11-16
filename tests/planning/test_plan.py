@@ -147,3 +147,14 @@ def test_a_single_fill_up_is_only_possible_within_range(planner):
 def test_no_station_along_the_route_is_its_own_error(planner):
     with pytest.raises(NoStationAlongRouteError):
         planner.plan(ROUTE, [_station(4, 42.0, -97.0, "2.00")])
+
+
+def test_a_single_fill_up_reports_the_stations_distance_from_the_route(planner):
+    # Due east of the route's midpoint: 157 miles from the route, 172 from the start.
+    elsewhere = _station(9, 41.0, -97.0, "3.10")
+    short = Route(138.2, 2.3, np.array([[40.0, -100.0], [42.0, -100.0]]))
+
+    plan = planner.plan_single_fill_up(short, elsewhere, distance_from_start_miles=172.0)
+
+    assert plan.stops[0].offset_miles == pytest.approx(156.6, abs=0.5)
+    assert "172 miles" in plan.notes[0]
