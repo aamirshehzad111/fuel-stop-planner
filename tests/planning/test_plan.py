@@ -3,7 +3,7 @@ from decimal import Decimal
 import numpy as np
 import pytest
 
-from core.exceptions import NoFuelPlanError
+from core.exceptions import NoFuelPlanError, NoStationAlongRouteError
 from core.geo import Coordinates
 from planning.geometry import cumulative_miles
 from planning.optimizer import FuelStopOptimizer
@@ -122,4 +122,28 @@ def test_stops_that_round_to_no_fuel_are_left_out(planner):
 
 def test_no_station_along_the_route_has_no_plan(planner):
     with pytest.raises(NoFuelPlanError):
+        planner.plan(ROUTE, [_station(4, 42.0, -97.0, "2.00")])
+
+
+def test_a_single_fill_up_can_be_priced_at_a_station_off_the_route(planner):
+    elsewhere = _station(9, 40.0, -97.0, "3.10")
+    short = Route(138.2, 2.3, np.array([[40.0, -100.0], [42.0, -100.0]]))
+
+    plan = planner.plan_single_fill_up(short, elsewhere, distance_from_start_miles=158.6)
+
+    (stop,) = plan.stops
+    assert (stop.departure, stop.route_mile, stop.gallons) == (True, 0, Decimal("13.82"))
+    assert plan.total_cost == Decimal("42.84")
+    assert "159 miles" in plan.notes[0]
+
+
+def test_a_single_fill_up_is_only_possible_within_range(planner):
+    with pytest.raises(NoFuelPlanError):
+        planner.plan_single_fill_up(
+            ROUTE, _station(9, 40.0, -97.0, "3.10"), distance_from_start_miles=1
+        )
+
+
+def test_no_station_along_the_route_is_its_own_error(planner):
+    with pytest.raises(NoStationAlongRouteError):
         planner.plan(ROUTE, [_station(4, 42.0, -97.0, "2.00")])

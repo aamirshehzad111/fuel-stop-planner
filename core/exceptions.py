@@ -49,6 +49,10 @@ class NoFuelPlanError(DomainError):
         self.gap_end_mile = gap_end_mile
 
 
+class NoStationAlongRouteError(NoFuelPlanError):
+    """No station from the price list is near the route at all."""
+
+
 class ProviderError(Exception):
     """An external service failed."""
 
