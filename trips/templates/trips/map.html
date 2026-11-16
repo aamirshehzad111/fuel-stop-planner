@@ -73,7 +73,7 @@
     const plan = JSON.parse(document.getElementById("trip-plan").textContent);
     const escape = (text) => String(text).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-    const map = L.map("map");
+    const map = L.map("map", { zoomSnap: 0.5 });
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       // OpenStreetMap blocks tile requests that don't say which site they come from;

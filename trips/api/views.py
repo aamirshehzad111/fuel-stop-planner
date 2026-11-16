@@ -26,12 +26,14 @@ class TripPlanView(APIView):
 
     @extend_schema(
         operation_id="plan_trip",
+        tags=["Trips"],
         summary="Plan a trip's route and fuel stops",
         description=(
             "Resolves the start and finish (anywhere in the USA), makes one routing call, "
             "and picks where to buy fuel so the trip costs as little as possible, for a "
             "vehicle with a 500-mile range that does 10 miles per gallon. The vehicle starts "
-            "empty: the first stop is the fill-up before setting off. Every gallon the trip "
+            "empty: the first stop is a fill-up at the first station on the route, normally in "
+            "the start town. Every gallon the trip "
             "burns is bought at one of the stops, so `summary.total_cost` is the trip's fuel "
             "cost.\n\nAdd `format=html` (or follow `map_url`) to see the trip on a map."
         ),

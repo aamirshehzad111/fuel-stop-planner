@@ -23,6 +23,7 @@ from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
 
 from core.exceptions import (
+    FuelPricesNotLoadedError,
     LocationNotFoundError,
     LocationOutsideUnitedStatesError,
     NoFuelPlanError,
@@ -48,6 +49,7 @@ PROBLEMS: dict[type[Exception], tuple[int, str]] = {
     ProviderUnavailableError: (503, "routing_unavailable"),
     ProviderTimeoutError: (504, "routing_timeout"),
     ProviderResponseError: (502, "routing_failed"),
+    FuelPricesNotLoadedError: (503, "fuel_prices_not_loaded"),
 }
 
 

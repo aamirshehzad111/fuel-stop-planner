@@ -152,3 +152,43 @@ def test_places_outside_the_us_are_rejected(resolver, query):
 def test_nothing_found_anywhere(resolver):
     with pytest.raises(LocationNotFoundError, match="Could not find 'Atlantis, ZZ'"):
         resolver.resolve("Atlantis, ZZ")
+
+
+@pytest.mark.parametrize("query", ["🚚", "!!!", "-- ,"])
+def test_text_without_letters_or_digits_is_not_sent_to_the_geocoder(resolver, geocoder, query):
+    with pytest.raises(LocationNotFoundError):
+        resolver.resolve(query)
+
+    assert geocoder.queries == []
+
+
+@pytest.mark.parametrize(
+    ("query", "label"),
+    [
+        ("Chicago IL", "Chicago, IL"),
+        ("st louis mo", "St. Louis, MO"),
+        ("New York NY", "New York, NY"),
+        ("Chicago IL 60601", "Chicago, IL"),
+    ],
+)
+def test_city_and_state_code_without_a_comma_are_looked_up_locally(
+    resolver, geocoder, query, label
+):
+    assert resolver.resolve(query).label == label
+    assert geocoder.queries == []
+
+
+@pytest.mark.parametrize("query", ["00601", "00802", "96910"])
+def test_zip_codes_of_us_territories_are_outside_the_usa(resolver, geocoder, query):
+    with pytest.raises(LocationOutsideUnitedStatesError):
+        resolver.resolve(query)
+
+    assert geocoder.queries == []
+
+
+def test_unknown_zip_codes_are_not_sent_to_the_geocoder(resolver, geocoder):
+    # A bare number would match house numbers anywhere.
+    with pytest.raises(LocationNotFoundError, match="ZIP code"):
+        resolver.resolve("99999")
+
+    assert geocoder.queries == []

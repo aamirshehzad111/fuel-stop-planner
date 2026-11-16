@@ -4,7 +4,7 @@ Resolvers are tried in order; the first that recognizes the text wins:
 
 1. `CoordinatesResolver`  "41.8781,-87.6298"
 2. `PostalCodeResolver`   "10001"              (local lookup, no external call)
-3. `PlaceNameResolver`    "Chicago, IL"        (local lookup, no external call)
+3. `PlaceNameResolver`    "Chicago, IL"        (local lookup, no external call; also "Chicago IL")
 4. `GeocoderResolver`     anything else: "New York", a street address, a landmark
 """
 
@@ -21,10 +21,16 @@ from locations.names import parse_state
 
 _COORDINATES = re.compile(r"^(?P<lat>[-+]?\d+(?:\.\d+)?)\s*[,\s]\s*(?P<lng>[-+]?\d+(?:\.\d+)?)$")
 _POSTAL_CODE = re.compile(r"^(?P<code>\d{5})(?:-\d{4})?$")
+# ZIP prefixes of Puerto Rico and the Virgin Islands (006-009) and the Pacific territories (969).
+_TERRITORY_ZIP_PREFIXES = ("006", "007", "008", "009", "969")
 _CITY_STATE = re.compile(
     r"^(?P<city>[^,\d][^,]*?)\s*,\s*(?P<state>[^,\d]+?)(?:\s+\d{5}(?:-\d{4})?)?"
     r"(?:\s*,\s*(?:USA|US|United States))?$",
     re.IGNORECASE,
+)
+# "Chicago IL": without a comma, only a two-letter state code is taken as the state.
+_CITY_STATE_CODE = re.compile(
+    r"^(?P<city>[^,\d][^,]*?)\s+(?P<state>[A-Za-z]{2})(?:\s+\d{5}(?:-\d{4})?)?$"
 )
 _US_COUNTRY_CODE = "USA"
 
@@ -65,10 +71,14 @@ class PostalCodeResolver:
         match = _POSTAL_CODE.match(query)
         if match is None:
             return None
-        postal_code = self._directory.find_postal_code(match["code"])
-        if postal_code is None:
-            return None
-        return ResolvedLocation(query, f"ZIP {postal_code.code}", postal_code.coordinates)
+        code = match["code"]
+        postal_code = self._directory.find_postal_code(code)
+        if postal_code is not None:
+            return ResolvedLocation(query, f"ZIP {postal_code.code}", postal_code.coordinates)
+        # Not sent to the geocoder: a bare number matches house numbers anywhere.
+        if code.startswith(_TERRITORY_ZIP_PREFIXES):
+            raise LocationOutsideUnitedStatesError(query, f"ZIP {code}, a US territory")
+        raise LocationNotFoundError(query, what="ZIP code ")
 
 
 class PlaceNameResolver:
@@ -76,7 +86,7 @@ class PlaceNameResolver:
         self._directory = directory
 
     def resolve(self, query: str) -> ResolvedLocation | None:
-        match = _CITY_STATE.match(query)
+        match = _CITY_STATE.match(query) or _CITY_STATE_CODE.match(query)
         if match is None:
             return None
         state = parse_state(match["state"])
@@ -113,6 +123,8 @@ class ResolverChain:
 
     def resolve(self, query: str) -> ResolvedLocation:
         text = query.strip()
+        if not any(character.isalnum() for character in text):
+            raise LocationNotFoundError(text)  # nothing a geocoder could search for
         for resolver in self._resolvers:
             location = resolver.resolve(text)
             if location is not None:

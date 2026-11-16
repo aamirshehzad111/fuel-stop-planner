@@ -11,9 +11,9 @@ class DomainError(Exception):
 
 
 class LocationNotFoundError(DomainError):
-    def __init__(self, query: str) -> None:
+    def __init__(self, query: str, what: str = "") -> None:
         super().__init__(
-            f"Could not find {query!r}. Try a city and state (e.g. 'Dallas, TX'), "
+            f"Could not find {what or ''}{query!r}. Try a city and state (e.g. 'Dallas, TX'), "
             "a ZIP code, a street address or 'latitude,longitude'."
         )
         self.query = query
@@ -51,6 +51,16 @@ class NoFuelPlanError(DomainError):
 
 class NoStationAlongRouteError(NoFuelPlanError):
     """No station from the price list is near the route at all."""
+
+
+class FuelPricesNotLoadedError(Exception):
+    """The station table is empty: the setup step that loads the data was skipped."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "No fuel prices are loaded. Run `make data` (or `python manage.py import_places` "
+            "then `python manage.py import_fuel_prices`) and try again."
+        )
 
 
 class ProviderError(Exception):

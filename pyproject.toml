@@ -3,11 +3,11 @@ name = "fuel-stop-planner"
 version = "1.0.0"
 description = "Django API that plans the cheapest fuel stops along a driving route in the USA."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py312"
 extend-exclude = ["*/migrations/*"]
 
 [tool.ruff.lint]
@@ -31,7 +31,7 @@ source = ["config", "core", "locations", "stations", "routing", "integrations", 
 omit = ["*/migrations/*", "config/asgi.py", "config/wsgi.py"]
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.12"
 plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 strict = true
 warn_unreachable = true

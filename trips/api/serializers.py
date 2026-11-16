@@ -94,7 +94,9 @@ class StationSerializer(serializers.Serializer[Any]):
 class FuelStopSerializer(serializers.Serializer[Any]):
     sequence = serializers.IntegerField()
     departure = serializers.BooleanField(
-        help_text="The fill-up before setting off, priced at this station (the first on the route)."
+        help_text=(
+            "The first fill-up: at the first station on the route, normally in the start town."
+        )
     )
     route_mile = RoundedFloatField(1, help_text="How far along the route the station is.")
     distance_from_route_miles = RoundedFloatField(1, source="offset_miles")

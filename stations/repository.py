@@ -9,6 +9,9 @@ _NEAREST_SEARCH_MILES = (25, 100, 400, 3000)
 class DjangoStationRepository:
     """Reads fuel stations from the database as domain objects."""
 
+    def has_stations(self) -> bool:
+        return FuelStation.objects.exists()
+
     def find_nearest(self, point: Coordinates) -> Station | None:
         """The station closest to a point, searching outwards in growing boxes."""
         for radius in _NEAREST_SEARCH_MILES:

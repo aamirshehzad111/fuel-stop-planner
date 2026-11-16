@@ -34,17 +34,13 @@ def test_route_is_parsed_into_miles_hours_and_a_lat_lng_path(provider):
 
 
 @responses.activate
-def test_request_asks_for_a_road_from_anywhere_and_no_turn_instructions(provider):
+def test_request_asks_for_the_route_without_turn_instructions(provider):
     responses.post(
         DIRECTIONS,
         json=FIXTURE,
         match=[
             responses.matchers.json_params_matcher(
-                {
-                    "coordinates": [[-87.6847, 41.837], [-87.967, 43.05]],
-                    "instructions": False,
-                    "radiuses": [-1, -1],
-                }
+                {"coordinates": [[-87.6847, 41.837], [-87.967, 43.05]], "instructions": False}
             )
         ],
     )
@@ -52,12 +48,34 @@ def test_request_asks_for_a_road_from_anywhere_and_no_turn_instructions(provider
     provider.route(CHICAGO, MILWAUKEE)
 
 
-@pytest.mark.parametrize("code", [2009, 2010])
 @responses.activate
-def test_unroutable_points_mean_no_route(provider, code):
-    responses.post(DIRECTIONS, json={"error": {"code": code, "message": "x"}}, status=404)
+def test_no_route_between_the_points(provider):
+    responses.post(DIRECTIONS, json={"error": {"code": 2009, "message": "x"}}, status=404)
 
     with pytest.raises(RouteNotFoundError, match="No drivable route"):
+        provider.route(CHICAGO, MILWAUKEE)
+
+
+@pytest.mark.parametrize(("index", "end"), [(0, "start"), (1, "finish")])
+@responses.activate
+def test_no_road_near_a_point_names_which_end(provider, index, end):
+    message = (
+        "Could not find routable point within a radius of 350.0 meters of specified "
+        f"coordinate {index}: -110.5880000 44.6050000."
+    )
+    responses.post(DIRECTIONS, json={"error": {"code": 2010, "message": message}}, status=404)
+
+    with pytest.raises(
+        RouteNotFoundError, match=f"no road within 350 m of the {end} .or doesn't cover"
+    ):
+        provider.route(CHICAGO, MILWAUKEE)
+
+
+@responses.activate
+def test_no_road_near_an_unnamed_point(provider):
+    responses.post(DIRECTIONS, json={"error": {"code": 2010, "message": "?"}}, status=404)
+
+    with pytest.raises(RouteNotFoundError, match="No road near the start or the finish"):
         provider.route(CHICAGO, MILWAUKEE)
 
 

@@ -106,6 +106,14 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Fuel Stop Planner API",
     "DESCRIPTION": "Plans a driving route between two US locations and the cheapest fuel stops.",
     "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SORT_OPERATION_PARAMETERS": "trips.api.schema.parameter_order",
+    # Open the docs on the endpoint with "Try it out" ready; links can point at it.
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "tryItOutEnabled": True,
+        "defaultModelsExpandDepth": -1,
+    },
 }
 
 LOGGING = {
@@ -132,7 +140,9 @@ FUEL_PLANNER = {
     "MILES_PER_GALLON": 10,
     # Stations are placed at their town's center; towns this close to the route count.
     "MAX_STATION_OFFSET_MILES": 5,
-    # Each stop counts as this many dollars when choosing stops (never billed). Measured on
-    # eight long trips, $5 cut the stops by more than half for under 1% more fuel cost.
-    "STOP_PENALTY_USD": 5,
+    # Each stop counts as this many dollars when choosing stops (never billed): roughly the
+    # driver's and truck's time for a 15-20 minute stop. On long trips this halves the
+    # number of stops for 1-3% more fuel cost, and avoids topping up a few gallons
+    # just to reach a slightly cheaper station nearby.
+    "STOP_PENALTY_USD": 10,
 }
